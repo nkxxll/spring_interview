@@ -1,5 +1,6 @@
 package com.interview.server.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 @Entity
@@ -17,6 +18,7 @@ public class Comment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id") // This is the Foreign Key in the DB
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private Post post;
 
     public Long getId() {

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Post · Blog</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    </svg>
+    Blog
+  </a>
+  <div class="nav-actions">
+    <a href="index.html" class="btn btn-ghost">← All Posts</a>
+  </div>
+</nav>
+
+<div class="container" id="main-container">
+  <div class="loading-state">
+    <div class="spinner"></div>
+    Loading post…
+  </div>
+</div>
+
+<script>
+  function escHtml(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function showAlert(area, msg, type = 'error') {
+    area.innerHTML = `<div class="alert alert-${type}">${escHtml(msg)}</div>`;
+  }
+
+  async function loadPost() {
+    const container = document.getElementById('main-container');
+    const params = new URLSearchParams(location.search);
+    const postId = parseInt(params.get('id'));
+
+    if (!postId) {
+      container.innerHTML = `<div style="text-align:center;padding:4rem;color:var(--text-muted)">
+        <div style="font-size:2rem;margin-bottom:.75rem">🔍</div>
+        <p>No post ID specified.</p>
+        <a href="index.html" class="btn btn-outline" style="margin-top:1rem">Go Home</a>
+      </div>`;
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/post/show');
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const posts = await res.json();
+      const post = posts.find(p => p.id === postId);
+
+      if (!post) {
+        container.innerHTML = `<div style="text-align:center;padding:4rem;color:var(--text-muted)">
+          <div style="font-size:2rem;margin-bottom:.75rem">😕</div>
+          <p>Post not found.</p>
+          <a href="index.html" class="btn btn-outline" style="margin-top:1rem">Go Home</a>
+        </div>`;
+        return;
+      }
+
+      document.title = `${post.title || 'Post'} · Blog`;
+
+      const related = post.relatedPosts || [];
+      const comments = post.comments || [];
+
+      container.innerHTML = `
+        <div class="breadcrumb">
+          <a href="index.html">Home</a>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          ${escHtml(post.title || 'Post')}
+        </div>
+
+        <!-- Post body -->
+        <div class="detail-card">
+          <div class="detail-title">${escHtml(post.title || 'Untitled')}</div>
+          <div class="detail-content">${escHtml(post.content || '')}</div>
+        </div>
+
+        <!-- Related posts -->
+        ${related.length > 0 ? `
+        <div class="detail-card">
+          <div class="section-title" style="margin-bottom:1rem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Related Posts
+          </div>
+          <div class="chips">
+            ${related.map(r => `<button class="chip" onclick="location.href='post.html?id=${r.id}'">${escHtml(r.title || 'Post #' + r.id)}</button>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- Comments -->
+        <div class="detail-card" id="comments-section">
+          <div class="section-title" style="margin-bottom:1rem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Comments
+            <span class="count-badge">${comments.length}</span>
+          </div>
+
+          <div class="comments-list" id="comments-list">
+            ${comments.length === 0
+              ? '<p style="color:var(--text-muted);font-size:.875rem;margin-bottom:1.25rem">No comments yet. Be the first!</p>'
+              : comments.map(c => `
+                <div class="comment-item">
+                  <div class="comment-author">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    ${escHtml(c.author || 'Anonymous')}
+                  </div>
+                  <div class="comment-text">${escHtml(c.text || '')}</div>
+                </div>`).join('')
+            }
+          </div>
+
+          <hr />
+
+          <div style="font-size:.9375rem;font-weight:700;margin-bottom:1rem">Leave a Comment</div>
+          <div id="comment-alert"></div>
+
+          <form id="comment-form">
+            <div class="form-group">
+              <label class="form-label" for="comment-author">Your Name</label>
+              <input class="form-input" id="comment-author" type="text" placeholder="Name (optional)" autocomplete="name" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="comment-text">Comment</label>
+              <textarea class="form-textarea" id="comment-text" placeholder="Share your thoughts…" style="min-height:100px" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" id="comment-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Post Comment
+            </button>
+          </form>
+        </div>`;
+
+      // Handle comment submission
+      document.getElementById('comment-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('comment-btn');
+        const alertArea = document.getElementById('comment-alert');
+        alertArea.innerHTML = '';
+        btn.disabled = true;
+        btn.innerHTML = '<div class="spinner"></div> Posting…';
+
+        const body = {
+          author: document.getElementById('comment-author').value.trim() || 'Anonymous',
+          text: document.getElementById('comment-text').value.trim(),
+          post: { id: postId },
+        };
+
+        try {
+          const res = await fetch('/api/comment/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) throw new Error(`Server error ${res.status}`);
+          const created = await res.json();
+
+          // Append new comment to the list
+          const list = document.getElementById('comments-list');
+          const placeholder = list.querySelector('p');
+          if (placeholder) placeholder.remove();
+
+          const div = document.createElement('div');
+          div.className = 'comment-item';
+          div.innerHTML = `
+            <div class="comment-author">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              ${escHtml(created.author || 'Anonymous')}
+            </div>
+            <div class="comment-text">${escHtml(created.text || '')}</div>`;
+          list.appendChild(div);
+
+          // Update count badge
+          const badge = document.querySelector('#comments-section .count-badge');
+          if (badge) badge.textContent = parseInt(badge.textContent || 0) + 1;
+
+          // Reset form
+          document.getElementById('comment-form').reset();
+          showAlert(alertArea, 'Comment posted!', 'success');
+        } catch (err) {
+          showAlert(alertArea, 'Failed to post comment: ' + err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Post Comment`;
+        }
+      });
+
+    } catch (err) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Error loading post</h3><p>${escHtml(err.message)}</p><a href="index.html" class="btn btn-outline" style="margin-top:1rem">Go Home</a></div>`;
+    }
+  }
+
+  loadPost();
+</script>
+</body>
+</html>

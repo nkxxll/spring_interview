@@ -6,6 +6,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "posts")
 public class Post {
@@ -35,8 +37,8 @@ public class Post {
         joinColumns = @JoinColumn(name = "post_id"),
         inverseJoinColumns = @JoinColumn(name = "related_post_id")
     )
+    @JsonIgnoreProperties({"relatedPosts", "comments"})
     private Set<Post> relatedPosts = new HashSet<>();
-
     public Long getId() {
         return id;
     }

@@ -6,6 +6,8 @@ import com.interview.server.repository.CommentRepository;
 import com.interview.server.repository.PostRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -48,8 +50,14 @@ class ServerController {
 
     @PostMapping("/post/create")
     public Post createPost(@RequestBody Post post, HttpServletRequest request) {
-        Post savedPost = postRepository.save(post);
-        return savedPost;
+        if (post.getRelatedPosts() != null && !post.getRelatedPosts().isEmpty()) {
+            Set<Post> managed = post.getRelatedPosts().stream()
+                .filter(rp -> rp.getId() != null)
+                .map(rp -> postRepository.findById(rp.getId()).orElseThrow())
+                .collect(Collectors.toSet());
+            post.setRelatedPosts(managed);
+        }
+        return postRepository.save(post);
     }
 
     @PostMapping("/comment/create")
