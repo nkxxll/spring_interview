@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -42,6 +43,12 @@ class ServerController {
         return posts;
     }
 
+    @GetMapping("/post/search")
+    public List<Post> searchPost(@RequestParam(required = true) String q) {
+        List<Post> posts = postRepository.findByTitleContainingOrContentContaining(q, q);
+        return posts;
+    }
+
     @GetMapping("/comment/show")
     public List<Post> showComments() {
         List<Post> posts = postRepository.findAll();
@@ -50,8 +57,12 @@ class ServerController {
 
     @PostMapping("/post/create")
     public Post createPost(@RequestBody Post post, HttpServletRequest request) {
-        if (post.getRelatedPosts() != null && !post.getRelatedPosts().isEmpty()) {
-            Set<Post> managed = post.getRelatedPosts().stream()
+        if (
+            post.getRelatedPosts() != null && !post.getRelatedPosts().isEmpty()
+        ) {
+            Set<Post> managed = post
+                .getRelatedPosts()
+                .stream()
                 .filter(rp -> rp.getId() != null)
                 .map(rp -> postRepository.findById(rp.getId()).orElseThrow())
                 .collect(Collectors.toSet());

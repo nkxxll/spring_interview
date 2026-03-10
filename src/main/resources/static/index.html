@@ -36,6 +36,11 @@
       All Posts
       <span class="count-badge" id="post-count" style="display:none"></span>
     </div>
+    <div class="search-box">
+      <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" id="search-input" class="search-input" placeholder="Search posts…" autocomplete="off" />
+      <div class="search-spinner spinner" id="search-spinner" style="display:none"></div>
+    </div>
   </div>
 
   <div class="posts-grid" id="posts-grid">
@@ -47,60 +52,85 @@
 </div>
 
 <script>
-  async function loadPosts() {
-    const grid = document.getElementById('posts-grid');
-    const countBadge = document.getElementById('post-count');
-    try {
-      const res = await fetch('/api/post/show');
-      if (!res.ok) throw new Error('Failed to fetch posts');
-      const posts = await res.json();
-
-      countBadge.textContent = posts.length;
-      countBadge.style.display = '';
-
-      if (posts.length === 0) {
-        grid.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">📝</div>
-            <h3>No posts yet</h3>
-            <p>Be the first to share something!</p>
-            <a href="create-post.html" class="btn btn-primary">Write a Post</a>
-          </div>`;
-        return;
-      }
-
-      grid.innerHTML = posts.map(post => {
-        const excerpt = (post.content || '').slice(0, 180) + (post.content && post.content.length > 180 ? '…' : '');
-        const commentCount = (post.comments || []).length;
-        const relatedCount = (post.relatedPosts || []).length;
-        return `
-          <div class="post-card" onclick="location.href='post.html?id=${post.id}'">
-            <div class="post-card-title">${escHtml(post.title || 'Untitled')}</div>
-            <div class="post-card-excerpt">${escHtml(excerpt) || '<em style="opacity:.5">No content</em>'}</div>
-            <div class="post-card-meta">
-              <span class="meta-item">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                ${commentCount} comment${commentCount !== 1 ? 's' : ''}
-              </span>
-              ${relatedCount > 0 ? `
-              <span class="meta-item">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                ${relatedCount} linked
-              </span>` : ''}
-              <span class="meta-item" style="margin-left:auto">Read →</span>
-            </div>
-          </div>`;
-      }).join('');
-    } catch (err) {
-      grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Could not load posts</h3><p>${escHtml(err.message)}</p></div>`;
-    }
-  }
-
   function escHtml(str) {
     return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  loadPosts();
+  function renderPosts(posts, query) {
+    const grid = document.getElementById('posts-grid');
+    const countBadge = document.getElementById('post-count');
+
+    countBadge.textContent = posts.length;
+    countBadge.style.display = '';
+
+    if (posts.length === 0) {
+      grid.innerHTML = query
+        ? `<div class="empty-state">
+             <div class="empty-state-icon">🔍</div>
+             <h3>No results for "${escHtml(query)}"</h3>
+             <p>Try a different search term.</p>
+           </div>`
+        : `<div class="empty-state">
+             <div class="empty-state-icon">📝</div>
+             <h3>No posts yet</h3>
+             <p>Be the first to share something!</p>
+             <a href="create-post.html" class="btn btn-primary">Write a Post</a>
+           </div>`;
+      return;
+    }
+
+    grid.innerHTML = posts.map(post => {
+      const excerpt = (post.content || '').slice(0, 180) + (post.content && post.content.length > 180 ? '…' : '');
+      const commentCount = (post.comments || []).length;
+      const relatedCount = (post.relatedPosts || []).length;
+      return `
+        <div class="post-card" onclick="location.href='post.html?id=${post.id}'">
+          <div class="post-card-title">${escHtml(post.title || 'Untitled')}</div>
+          <div class="post-card-excerpt">${escHtml(excerpt) || '<em style="opacity:.5">No content</em>'}</div>
+          <div class="post-card-meta">
+            <span class="meta-item">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              ${commentCount} comment${commentCount !== 1 ? 's' : ''}
+            </span>
+            ${relatedCount > 0 ? `
+            <span class="meta-item">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              ${relatedCount} linked
+            </span>` : ''}
+            <span class="meta-item" style="margin-left:auto">Read →</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function fetchAndRender(query) {
+    const grid = document.getElementById('posts-grid');
+    const spinner = document.getElementById('search-spinner');
+    spinner.style.display = '';
+
+    try {
+      const url = query ? `/api/post/search?q=${encodeURIComponent(query)}` : '/api/post/show';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const posts = await res.json();
+      renderPosts(posts, query);
+    } catch (err) {
+      grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Could not load posts</h3><p>${escHtml(err.message)}</p></div>`;
+    } finally {
+      spinner.style.display = 'none';
+    }
+  }
+
+  // Initial load
+  fetchAndRender('');
+
+  // Debounced search
+  let debounceTimer;
+  document.getElementById('search-input').addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => fetchAndRender(query), 500);
+  });
 </script>
 </body>
 </html>
