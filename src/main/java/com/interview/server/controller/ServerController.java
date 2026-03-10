@@ -45,8 +45,18 @@ class ServerController {
 
     @GetMapping("/post/search")
     public List<Post> searchPost(@RequestParam(required = true) String q) {
-        List<Post> posts = postRepository.findByTitleContainingOrContentContaining(q, q);
+        List<Post> posts =
+            postRepository.findByTitleContainingOrContentContaining(q, q);
         return posts;
+    }
+
+    @GetMapping("/comment/search")
+    public List<Comment> searchComment(
+        @RequestParam(required = true) String q
+    ) {
+        List<Comment> comments =
+            commentRepository.findByTextContainingOrAuthorContaining(q, q);
+        return comments;
     }
 
     @GetMapping("/comment/show")

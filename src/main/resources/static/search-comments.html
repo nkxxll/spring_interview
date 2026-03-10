@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Comments · Blog</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    </svg>
+    Blog
+  </a>
+  <div class="nav-actions">
+    <a href="index.html" class="btn btn-ghost">← All Posts</a>
+    <a href="create-post.html" class="btn btn-primary">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Post
+    </a>
+  </div>
+</nav>
+
+<div class="comment-search-hero">
+  <div class="comment-search-hero-inner">
+    <div class="comment-search-label">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Search Comments
+    </div>
+    <div class="comment-search-box">
+      <svg class="comment-search-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input
+        type="search"
+        id="search-input"
+        class="comment-search-input"
+        placeholder="Search by author, text…"
+        autocomplete="off"
+        autofocus
+      />
+      <div class="spinner comment-search-spinner" id="search-spinner" style="display:none"></div>
+    </div>
+    <div class="comment-search-hint" id="search-hint">Type to search across all comments</div>
+  </div>
+</div>
+
+<div class="container-wide">
+  <div class="section-header" style="margin-bottom:1.25rem">
+    <div class="section-title" id="results-label" style="visibility:hidden">
+      Results
+      <span class="count-badge" id="result-count"></span>
+    </div>
+  </div>
+  <div id="results-area">
+    <div class="comment-results-grid" id="results-grid">
+      <!-- populated by JS -->
+    </div>
+  </div>
+</div>
+
+<script>
+  function escHtml(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function renderResults(comments, query) {
+    const grid = document.getElementById('results-grid');
+    const label = document.getElementById('results-label');
+    const countBadge = document.getElementById('result-count');
+    const hint = document.getElementById('search-hint');
+
+    label.style.visibility = 'visible';
+    countBadge.textContent = comments.length;
+    hint.textContent = query
+      ? `${comments.length} result${comments.length !== 1 ? 's' : ''} for "${query}"`
+      : `${comments.length} comment${comments.length !== 1 ? 's' : ''} total`;
+
+    if (comments.length === 0) {
+      grid.innerHTML = query
+        ? `<div class="empty-state">
+             <div class="empty-state-icon">🔍</div>
+             <h3>No comments match "${escHtml(query)}"</h3>
+             <p>Try searching by author name or comment text.</p>
+           </div>`
+        : `<div class="empty-state">
+             <div class="empty-state-icon">💬</div>
+             <h3>No comments yet</h3>
+             <p>Comments will appear here once people start engaging with posts.</p>
+             <a href="index.html" class="btn btn-outline">Browse Posts</a>
+           </div>`;
+      return;
+    }
+
+    grid.innerHTML = comments.map(c => {
+      // post info may or may not be present depending on backend serialization
+      const postId   = c.postId ?? c.post?.id ?? null;
+      const postTitle = c.postTitle ?? c.post?.title ?? null;
+      const postLink = postId
+        ? `<a class="comment-card-post-link" href="post.html?id=${postId}">
+             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+             ${escHtml(postTitle || `Post #${postId}`)}
+           </a>`
+        : '';
+
+      const textPreview = (c.text || '').slice(0, 300) + (c.text && c.text.length > 300 ? '…' : '');
+
+      return `
+        <div class="comment-card" ${postId ? `onclick="location.href='post.html?id=${postId}'"` : ''} style="${postId ? 'cursor:pointer' : ''}">
+          <div class="comment-card-header">
+            <div class="comment-card-author">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              ${escHtml(c.author || 'Anonymous')}
+            </div>
+            ${postLink}
+          </div>
+          <div class="comment-card-text">${escHtml(textPreview)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  async function fetchAndRender(query) {
+    const spinner = document.getElementById('search-spinner');
+    const grid = document.getElementById('results-grid');
+    spinner.style.display = '';
+
+    try {
+      const url = query
+        ? `/api/comment/search?q=${encodeURIComponent(query)}`
+        : '/api/comment/show';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const data = await res.json();
+      renderResults(data, query);
+    } catch (err) {
+      document.getElementById('results-label').style.visibility = 'visible';
+      grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Error loading comments</h3><p>${escHtml(err.message)}</p></div>`;
+    } finally {
+      spinner.style.display = 'none';
+    }
+  }
+
+  // Initial load
+  fetchAndRender('');
+
+  // Debounced search — 500 ms cooldown
+  let debounceTimer;
+  document.getElementById('search-input').addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => fetchAndRender(query), 500);
+  });
+</script>
+</body>
+</html>
