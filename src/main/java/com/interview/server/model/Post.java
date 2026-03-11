@@ -1,12 +1,11 @@
 package com.interview.server.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "posts")
@@ -18,6 +17,8 @@ public class Post {
 
     private String title;
 
+    private Long version = 1L;
+
     @Column(columnDefinition = "TEXT") // Allows for long content/articles
     private String content;
 
@@ -25,8 +26,7 @@ public class Post {
     // mappedBy refers to the "post" field in the Comment class
     @OneToMany(
         mappedBy = "post",
-        cascade = CascadeType.ALL,
-        orphanRemoval = true
+        cascade = { CascadeType.PERSIST, CascadeType.MERGE }
     )
     private List<Comment> comments = new ArrayList<>();
 
@@ -37,8 +37,9 @@ public class Post {
         joinColumns = @JoinColumn(name = "post_id"),
         inverseJoinColumns = @JoinColumn(name = "related_post_id")
     )
-    @JsonIgnoreProperties({"relatedPosts", "comments"})
+    @JsonIgnoreProperties({ "relatedPosts", "comments" })
     private Set<Post> relatedPosts = new HashSet<>();
+
     public Long getId() {
         return id;
     }
@@ -77,5 +78,13 @@ public class Post {
 
     public void setRelatedPosts(Set<Post> relatedPosts) {
         this.relatedPosts = relatedPosts;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 }

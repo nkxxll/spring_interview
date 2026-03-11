@@ -65,6 +65,7 @@
         return;
       }
 
+      currentPost = post;
       document.title = `${post.title || 'Post'} · Blog`;
 
       const related = post.relatedPosts || [];
@@ -78,9 +79,47 @@
         </div>
 
         <!-- Post body -->
-        <div class="detail-card">
-          <div class="detail-title">${escHtml(post.title || 'Untitled')}</div>
-          <div class="detail-content">${escHtml(post.content || '')}</div>
+        <div class="detail-card" id="post-body">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem">
+            <div class="detail-title" style="margin-bottom:0">${escHtml(post.title || 'Untitled')}</div>
+            <button class="btn btn-outline btn-sm" id="edit-btn" onclick="toggleEdit()" style="flex-shrink:0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit
+            </button>
+          </div>
+          <div class="detail-content" style="margin-top:1.25rem">${escHtml(post.content || '')}</div>
+        </div>
+
+        <!-- Edit form (hidden by default) -->
+        <div class="detail-card" id="edit-section" style="display:none">
+          <div class="form-card-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit Post
+          </div>
+          <div id="edit-alert"></div>
+          <form id="edit-form">
+            <div class="form-group">
+              <label class="form-label" for="edit-title">Title</label>
+              <input class="form-input" id="edit-title" type="text" required autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="edit-content">Content</label>
+              <textarea class="form-textarea" id="edit-content" style="min-height:200px" required></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Link Related Posts</label>
+              <div class="related-picker" id="edit-related-picker">
+                <div class="picker-empty">Loading posts…</div>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" id="save-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save Changes
+              </button>
+              <button type="button" class="btn btn-ghost" onclick="toggleEdit()">Cancel</button>
+            </div>
+          </form>
         </div>
 
         <!-- Related posts -->
@@ -136,7 +175,22 @@
               Post Comment
             </button>
           </form>
+        </div>
+
+        <!-- Edit History -->
+        <div class="detail-card" id="history-section">
+          <div class="section-title" style="margin-bottom:1rem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Edit History
+            <span class="count-badge" id="history-count">…</span>
+          </div>
+          <div id="history-list">
+            <div class="loading-state" style="padding:1.5rem"><div class="spinner"></div> Loading…</div>
+          </div>
         </div>`;
+
+      // Load edit history
+      loadHistory(postId);
 
       // Handle comment submission
       document.getElementById('comment-form').addEventListener('submit', async (e) => {
@@ -192,8 +246,134 @@
         }
       });
 
+      // Handle edit form submission
+      document.getElementById('edit-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('save-btn');
+        const alertArea = document.getElementById('edit-alert');
+        alertArea.innerHTML = '';
+        btn.disabled = true;
+        btn.innerHTML = '<div class="spinner"></div> Saving…';
+
+        const selectedIds = [...document.querySelectorAll('#edit-related-picker input[type=checkbox]:checked')]
+          .map(cb => ({ id: parseInt(cb.value) }));
+
+        const body = {
+          id: postId,
+          title: document.getElementById('edit-title').value.trim(),
+          content: document.getElementById('edit-content').value.trim(),
+          relatedPosts: selectedIds,
+        };
+
+        try {
+          const res = await fetch(`/api/post/${postId}/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) throw new Error(`Server error ${res.status}`);
+          location.reload();
+        } catch (err) {
+          showAlert(alertArea, 'Failed to save: ' + err.message);
+          btn.disabled = false;
+          btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Changes`;
+        }
+      });
+
     } catch (err) {
       container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Error loading post</h3><p>${escHtml(err.message)}</p><a href="index.html" class="btn btn-outline" style="margin-top:1rem">Go Home</a></div>`;
+    }
+  }
+
+  let currentPost = null;
+
+  function toggleEdit() {
+    const editSection = document.getElementById('edit-section');
+    const postBody = document.getElementById('post-body');
+    const showing = editSection.style.display !== 'none';
+
+    if (showing) {
+      editSection.style.display = 'none';
+      postBody.style.display = '';
+    } else {
+      document.getElementById('edit-title').value = currentPost.title || '';
+      document.getElementById('edit-content').value = currentPost.content || '';
+      document.getElementById('edit-alert').innerHTML = '';
+      loadEditPicker();
+      editSection.style.display = '';
+      postBody.style.display = 'none';
+    }
+  }
+
+  async function loadEditPicker() {
+    const picker = document.getElementById('edit-related-picker');
+    try {
+      const res = await fetch('/api/post/show');
+      if (!res.ok) throw new Error('Failed to load posts');
+      const posts = await res.json();
+      const others = posts.filter(p => p.id !== currentPost.id);
+
+      if (others.length === 0) {
+        picker.innerHTML = '<div class="picker-empty">No other posts to link.</div>';
+        return;
+      }
+
+      const currentRelatedIds = (currentPost.relatedPosts || []).map(r => r.id);
+      picker.innerHTML = others.map(p => {
+        const checked = currentRelatedIds.includes(p.id) ? 'checked' : '';
+        return `<label class="related-picker-item ${checked ? 'checked' : ''}" id="edit-pick-${p.id}">
+          <input type="checkbox" value="${p.id}" ${checked} onchange="this.parentElement.classList.toggle('checked', this.checked)" />
+          <span>${escHtml(p.title || 'Untitled')}</span>
+        </label>`;
+      }).join('');
+    } catch (err) {
+      picker.innerHTML = `<div class="picker-empty">Could not load posts: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  async function loadHistory(postId) {
+    const list = document.getElementById('history-list');
+    const badge = document.getElementById('history-count');
+    try {
+      const res = await fetch(`/api/post/${postId}/diff`);
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const diffs = await res.json();
+      badge.textContent = diffs.length;
+
+      if (diffs.length === 0) {
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:.875rem">No edits yet.</p>';
+        return;
+      }
+
+      list.innerHTML = '<div class="comments-list">' + diffs.map((d, i) => {
+        const titleLine = d.titleDiff ? `<div style="font-size:.8125rem;color:var(--text-muted);margin-bottom:.25rem">Title was: <strong>${escHtml(d.titleDiff)}</strong></div>` : '';
+        const contentBlock = d.contentDiff
+          ? `<pre style="background:#1e293b;color:#e2e8f0;padding:.75rem;border-radius:6px;font-size:.78rem;overflow-x:auto;line-height:1.5;margin-top:.375rem;white-space:pre-wrap;word-break:break-all">${escHtml(d.contentDiff)}</pre>`
+          : '';
+        const relatedBlock = d.relatedPostsChanges
+          ? `<div style="margin-top:.375rem"><div style="font-size:.8125rem;font-weight:600;color:var(--text-muted);margin-bottom:.25rem">Related Posts</div><pre style="background:#1e293b;color:#e2e8f0;padding:.75rem;border-radius:6px;font-size:.78rem;overflow-x:auto;line-height:1.5;white-space:pre-wrap;word-break:break-all">${escHtml(d.relatedPostsChanges)}</pre></div>`
+          : '';
+        const commentsBlock = d.commentsChanges
+          ? `<div style="margin-top:.375rem"><div style="font-size:.8125rem;font-weight:600;color:var(--text-muted);margin-bottom:.25rem">Comments</div><pre style="background:#1e293b;color:#e2e8f0;padding:.75rem;border-radius:6px;font-size:.78rem;overflow-x:auto;line-height:1.5;white-space:pre-wrap;word-break:break-all">${escHtml(d.commentsChanges)}</pre></div>`
+          : '';
+        const noChanges = !d.contentDiff && !d.relatedPostsChanges && !d.commentsChanges && !d.titleDiff
+          ? '<span style="color:var(--text-muted);font-size:.8125rem">No changes</span>'
+          : '';
+        return `<div class="comment-item">
+          <div class="comment-author">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Revision #${diffs.length - i}
+          </div>
+          ${titleLine}
+          ${contentBlock}
+          ${relatedBlock}
+          ${commentsBlock}
+          ${noChanges}
+        </div>`;
+      }).join('') + '</div>';
+    } catch (err) {
+      list.innerHTML = `<p style="color:var(--text-muted);font-size:.875rem">Could not load history: ${escHtml(err.message)}</p>`;
+      badge.textContent = '!';
     }
   }
 

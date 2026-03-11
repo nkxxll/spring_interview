@@ -2,9 +2,11 @@ package com.interview.server.controller;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import com.interview.server.model.Comment;
+import com.interview.server.model.Diff;
 import com.interview.server.model.Post;
 import com.interview.server.repository.CommentRepository;
 import com.interview.server.repository.PostRepository;
+import com.interview.server.repository.DiffRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Set;
@@ -12,6 +14,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,6 +30,9 @@ class ServerController {
 
     @Autowired
     private CommentRepository commentRepository;
+
+    @Autowired
+    private DiffRepository diffRepository;
 
     @GetMapping("/health")
     public ResponseEntity<Void> health() {
@@ -64,6 +70,31 @@ class ServerController {
     public List<Post> showComments() {
         List<Post> posts = postRepository.findAll();
         return posts;
+    }
+
+    @GetMapping("/post/{id}/diff")
+    public List<Diff> getPostDiffs(@PathVariable Long id) {
+        return diffRepository.findByPostId(id);
+    }
+
+    @PostMapping("/post/{id}/update")
+    public Post updatePost(@PathVariable Long id, @RequestBody Post post) {
+        if (
+            post.getRelatedPosts() != null && !post.getRelatedPosts().isEmpty()
+        ) {
+            Set<Post> managed = post
+                .getRelatedPosts()
+                .stream()
+                .filter(rp -> rp.getId() != null)
+                .map(rp -> postRepository.findById(rp.getId()).orElseThrow())
+                .collect(Collectors.toSet());
+            post.setRelatedPosts(managed);
+        }
+        post.setId(id);
+        Post oldPost = postRepository.findById(id).orElseThrow();
+        Diff diff = Diff.fromPosts(post, oldPost);
+        diffRepository.save(diff);
+        return postRepository.save(post);
     }
 
     @PostMapping("/post/create")
