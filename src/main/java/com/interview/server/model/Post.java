@@ -26,12 +26,13 @@ public class Post {
     // mappedBy refers to the "post" field in the Comment class
     @OneToMany(
         mappedBy = "post",
-        cascade = { CascadeType.PERSIST, CascadeType.MERGE }
+        cascade = { CascadeType.PERSIST, CascadeType.MERGE },
+        fetch = FetchType.EAGER
     )
     private List<Comment> comments = new ArrayList<>();
 
     // Self-referencing Many-to-Many for "Related Posts"
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "post_links",
         joinColumns = @JoinColumn(name = "post_id"),

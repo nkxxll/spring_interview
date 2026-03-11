@@ -17,6 +17,10 @@
   </a>
   <div class="nav-actions">
     <a href="index.html" class="btn btn-ghost">← All Posts</a>
+    <a class="btn btn-outline btn-sm" id="audit-link" style="display:none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Audit Trail
+    </a>
   </div>
 </nav>
 
@@ -40,6 +44,13 @@
     const container = document.getElementById('main-container');
     const params = new URLSearchParams(location.search);
     const postId = parseInt(params.get('id'));
+
+    // Show audit link in nav
+    if (postId) {
+      const auditLink = document.getElementById('audit-link');
+      auditLink.href = `post-audit.html?id=${postId}`;
+      auditLink.style.display = '';
+    }
 
     if (!postId) {
       container.innerHTML = `<div style="text-align:center;padding:4rem;color:var(--text-muted)">

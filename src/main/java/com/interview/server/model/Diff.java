@@ -6,6 +6,7 @@ import com.github.difflib.UnifiedDiffUtils;
 import com.github.difflib.patch.Patch;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -106,7 +107,22 @@ public class Diff {
     @Column(columnDefinition = "TEXT")
     private String commentsChanges;
 
-    @ManyToMany
+    // fetch = EAGER is required here because spring.jpa.open-in-view=false.
+    //
+    // With open-in-view disabled the Hibernate Session is scoped to the
+    // @Transactional boundary (i.e. the repository call) and is closed before
+    // the controller returns.  When Jackson serialises a Diff it walks every
+    // getter, including getCommentSnapshot() and getPostsSnapshot().  Because
+    // @ManyToMany defaults to FetchType.LAZY, Hibernate would try to load
+    // these collections on first access — but the Session is already closed,
+    // causing:
+    //   LazyInitializationException: Cannot lazily initialize collection of
+    //   role 'com.interview.server.model.Diff.commentSnapshot' (no session)
+    //
+    // Making the fetch EAGER forces Hibernate to load the collections in the
+    // same query/session that loaded the Diff, so they are always available
+    // when Jackson (or any other caller) accesses them outside a session.
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "diff_comments",
         joinColumns = @JoinColumn(name = "diff_id"),
@@ -114,7 +130,7 @@ public class Diff {
     )
     private List<Comment> commentSnapshot = new ArrayList<>();
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "diff_posts",
         joinColumns = @JoinColumn(name = "diff_id"),

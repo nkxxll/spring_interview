@@ -5,11 +5,14 @@ import com.interview.server.model.AuditEvent;
 import com.interview.server.model.Comment;
 import com.interview.server.model.Diff;
 import com.interview.server.model.Post;
+import com.interview.server.model.PostView;
 import com.interview.server.repository.CommentRepository;
 import com.interview.server.repository.PostRepository;
 import com.interview.server.repository.DiffRepository;
 import com.interview.server.service.AuditService;
+import com.interview.server.service.ViewTrackingService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -39,6 +42,9 @@ class ServerController {
 
     @Autowired
     private AuditService auditService;
+
+    @Autowired
+    private ViewTrackingService viewTrackingService;
 
     @GetMapping("/health")
     public ResponseEntity<Void> health() {
@@ -136,5 +142,33 @@ class ServerController {
         Comment savedComment = commentRepository.save(comment);
         auditService.logCommentAdded(savedComment, request);
         return savedComment;
+    }
+
+    @GetMapping("/post/{id}/audit")
+    public List<AuditEvent> getPostAudit(@PathVariable Long id) {
+        UUID postUuid = new UUID(0, id);
+        return auditService.getEventsForPost(postUuid);
+    }
+
+    @PostMapping("/post/{id}/view")
+    public ResponseEntity<Void> recordView(
+        @PathVariable Long id,
+        HttpServletRequest request
+    ) {
+        viewTrackingService.recordView(id, request);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/post/{id}/view-count")
+    public ResponseEntity<Long> getViewCount(@PathVariable Long id) {
+        return ResponseEntity.ok(viewTrackingService.getViewCount(id));
+    }
+
+    @GetMapping("/post/{id}/views")
+    public List<PostView> getViews(
+        @PathVariable Long id,
+        @RequestParam String date
+    ) {
+        return viewTrackingService.getViewsForDate(id, LocalDate.parse(date));
     }
 }
