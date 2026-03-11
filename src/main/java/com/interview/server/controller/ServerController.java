@@ -1,5 +1,6 @@
 package com.interview.server.controller;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import com.interview.server.model.Comment;
 import com.interview.server.model.Post;
 import com.interview.server.repository.CommentRepository;
@@ -66,6 +67,7 @@ class ServerController {
     }
 
     @PostMapping("/post/create")
+    @WithSpan
     public Post createPost(@RequestBody Post post, HttpServletRequest request) {
         if (
             post.getRelatedPosts() != null && !post.getRelatedPosts().isEmpty()
