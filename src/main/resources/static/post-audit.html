@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audit Trail · Blog</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    </svg>
+    Blog
+  </a>
+  <div class="nav-actions">
+    <a href="index.html" class="btn btn-ghost">← All Posts</a>
+  </div>
+</nav>
+
+<div class="container" id="main-container">
+  <div class="loading-state">
+    <div class="spinner"></div>
+    Loading audit trail…
+  </div>
+</div>
+
+<script>
+  function escHtml(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function eventTypeBadge(type) {
+    const map = {
+      POST_CREATED:  { label: 'Created',  cls: 'badge-green' },
+      POST_UPDATED:  { label: 'Updated',  cls: 'badge-blue' },
+      COMMENT_ADDED: { label: 'Comment',  cls: 'badge-purple' },
+    };
+    const info = map[type] || { label: type, cls: 'badge-gray' };
+    return `<span class="audit-badge ${info.cls}">${escHtml(info.label)}</span>`;
+  }
+
+  function formatDetail(detail) {
+    if (!detail) return '';
+    try {
+      const obj = JSON.parse(detail);
+      return Object.entries(obj).map(([k, v]) =>
+        `<span class="detail-pair"><span class="detail-key">${escHtml(k)}:</span> ${escHtml(String(v))}</span>`
+      ).join('');
+    } catch {
+      return escHtml(detail);
+    }
+  }
+
+  async function loadAudit() {
+    const container = document.getElementById('main-container');
+    const params = new URLSearchParams(location.search);
+    const postId = parseInt(params.get('id'));
+
+    if (!postId) {
+      container.innerHTML = `<div style="text-align:center;padding:4rem;color:var(--text-muted)">
+        <div style="font-size:2rem;margin-bottom:.75rem">🔍</div>
+        <p>No post ID specified.</p>
+        <a href="index.html" class="btn btn-outline" style="margin-top:1rem">Go Home</a>
+      </div>`;
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/post/${postId}/audit`);
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const events = await res.json();
+
+      document.title = `Audit Trail · Post #${postId} · Blog`;
+
+      container.innerHTML = `
+        <div class="breadcrumb">
+          <a href="index.html">Home</a>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <a href="post.html?id=${postId}">Post #${postId}</a>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          Audit Trail
+        </div>
+
+        <div class="detail-card">
+          <div class="section-title" style="margin-bottom:1.25rem">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Audit Trail
+            <span class="count-badge">${events.length}</span>
+          </div>
+
+          ${events.length === 0
+            ? '<p style="color:var(--text-muted);font-size:.875rem">No audit events recorded for this post.</p>'
+            : `<div class="comments-list">${events.map(e => `
+                <div class="comment-item">
+                  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem">
+                    <div style="display:flex;align-items:center;gap:.5rem">
+                      ${eventTypeBadge(e.eventType)}
+                      <span style="font-size:.8125rem;color:var(--text-muted)">Event ${escHtml(String(e.eventId).slice(0,8))}…</span>
+                    </div>
+                    <span style="font-size:.75rem;color:var(--text-muted);font-family:monospace">${escHtml(e.actorIp || 'unknown')}</span>
+                  </div>
+                  <div class="detail-pairs">${formatDetail(e.detail)}</div>
+                </div>`).join('')}
+              </div>`
+          }
+        </div>`;
+
+    } catch (err) {
+      container.innerHTML = `<div class="empty-state">
+        <div class="empty-state-icon">⚠️</div>
+        <h3>Could not load audit trail</h3>
+        <p>${escHtml(err.message)}</p>
+        <a href="index.html" class="btn btn-outline" style="margin-top:1rem">Go Home</a>
+      </div>`;
+    }
+  }
+
+  loadAudit();
+</script>
+
+<style>
+  .audit-badge {
+    display: inline-block;
+    padding: .15rem .6rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .badge-green  { background: #dcfce7; color: #15803d; }
+  .badge-blue   { background: #dbeafe; color: #1d4ed8; }
+  .badge-purple { background: #ede9fe; color: #6d28d9; }
+  .badge-gray   { background: #f1f5f9; color: #475569; }
+
+  .detail-pairs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .375rem .875rem;
+    font-size: .8625rem;
+  }
+  .detail-pair { display: inline-flex; gap: .25rem; }
+  .detail-key { font-weight: 600; color: var(--text-muted); }
+</style>
+</body>
+</html>

@@ -1,15 +1,18 @@
 package com.interview.server.controller;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import com.interview.server.model.AuditEvent;
 import com.interview.server.model.Comment;
 import com.interview.server.model.Diff;
 import com.interview.server.model.Post;
 import com.interview.server.repository.CommentRepository;
 import com.interview.server.repository.PostRepository;
 import com.interview.server.repository.DiffRepository;
+import com.interview.server.service.AuditService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +36,9 @@ class ServerController {
 
     @Autowired
     private DiffRepository diffRepository;
+
+    @Autowired
+    private AuditService auditService;
 
     @GetMapping("/health")
     public ResponseEntity<Void> health() {
@@ -78,7 +84,11 @@ class ServerController {
     }
 
     @PostMapping("/post/{id}/update")
-    public Post updatePost(@PathVariable Long id, @RequestBody Post post) {
+    public Post updatePost(
+        @PathVariable Long id,
+        @RequestBody Post post,
+        HttpServletRequest request
+    ) {
         if (
             post.getRelatedPosts() != null && !post.getRelatedPosts().isEmpty()
         ) {
@@ -94,7 +104,9 @@ class ServerController {
         Post oldPost = postRepository.findById(id).orElseThrow();
         Diff diff = Diff.fromPosts(post, oldPost);
         diffRepository.save(diff);
-        return postRepository.save(post);
+        Post saved = postRepository.save(post);
+        auditService.logPostUpdated(saved, request);
+        return saved;
     }
 
     @PostMapping("/post/create")
@@ -111,7 +123,9 @@ class ServerController {
                 .collect(Collectors.toSet());
             post.setRelatedPosts(managed);
         }
-        return postRepository.save(post);
+        Post saved = postRepository.save(post);
+        auditService.logPostCreated(saved, request);
+        return saved;
     }
 
     @PostMapping("/comment/create")
@@ -120,6 +134,7 @@ class ServerController {
         HttpServletRequest request
     ) {
         Comment savedComment = commentRepository.save(comment);
+        auditService.logCommentAdded(savedComment, request);
         return savedComment;
     }
 }
