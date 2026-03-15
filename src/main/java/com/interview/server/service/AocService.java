@@ -10,14 +10,16 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AocService {
 
-    @Autowired
-    private AocResultRepository aocResultRepository;
+    private final AocResultRepository aocResultRepository;
+
+    public AocService(AocResultRepository aocResultRepository) {
+        this.aocResultRepository = aocResultRepository;
+    }
 
     public List<AocResult> getHistory() {
         return aocResultRepository.findRecent();

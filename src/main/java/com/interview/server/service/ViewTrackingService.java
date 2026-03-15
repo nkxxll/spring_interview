@@ -10,21 +10,27 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.cassandra.core.CassandraOperations;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ViewTrackingService {
 
-    @Autowired
-    private PostViewRepository postViewRepository;
+    private final PostViewRepository postViewRepository;
 
-    @Autowired
-    private PostViewCountRepository postViewCountRepository;
+    private final PostViewCountRepository postViewCountRepository;
 
-    @Autowired
-    private CassandraOperations cassandraOperations;
+    private final CassandraOperations cassandraOperations;
+
+    public ViewTrackingService(
+        PostViewRepository postViewRepository,
+        PostViewCountRepository postViewCountRepository,
+        CassandraOperations cassandraOperations
+    ) {
+        this.postViewRepository = postViewRepository;
+        this.postViewCountRepository = postViewCountRepository;
+        this.cassandraOperations = cassandraOperations;
+    }
 
     public void recordView(Long postId, HttpServletRequest request) {
         UUID uuid = uuidFromLong(postId);

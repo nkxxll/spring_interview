@@ -8,14 +8,16 @@ import com.interview.server.repository.AuditEventRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuditService {
 
-    @Autowired
-    private AuditEventRepository auditEventRepository;
+    private final AuditEventRepository auditEventRepository;
+
+    public AuditService(AuditEventRepository auditEventRepository) {
+        this.auditEventRepository = auditEventRepository;
+    }
 
     public void logPostCreated(Post post, HttpServletRequest request) {
         AuditEvent event = buildEvent(

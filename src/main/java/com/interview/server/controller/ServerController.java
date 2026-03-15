@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,23 +32,33 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 class ServerController {
 
-    @Autowired
-    private PostRepository postRepository;
+    private final PostRepository postRepository;
 
-    @Autowired
-    private CommentRepository commentRepository;
+    private final CommentRepository commentRepository;
 
-    @Autowired
-    private DiffRepository diffRepository;
+    private final DiffRepository diffRepository;
 
-    @Autowired
-    private AuditService auditService;
+    private final AuditService auditService;
 
-    @Autowired
-    private AocService aocService;
+    private final AocService aocService;
 
-    @Autowired
-    private ViewTrackingService viewTrackingService;
+    private final ViewTrackingService viewTrackingService;
+
+    ServerController(
+        PostRepository postRepository,
+        CommentRepository commentRepository,
+        DiffRepository diffRepository,
+        AuditService auditService,
+        AocService aocService,
+        ViewTrackingService viewTrackingService
+    ) {
+        this.postRepository = postRepository;
+        this.commentRepository = commentRepository;
+        this.diffRepository = diffRepository;
+        this.auditService = auditService;
+        this.aocService = aocService;
+        this.viewTrackingService = viewTrackingService;
+    }
 
     @GetMapping("/health")
     public ResponseEntity<Void> health() {
