@@ -1,6 +1,7 @@
 package com.interview.server.controller;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import com.interview.server.model.AocResult;
 import com.interview.server.model.AuditEvent;
 import com.interview.server.model.Comment;
 import com.interview.server.model.Diff;
@@ -9,6 +10,7 @@ import com.interview.server.model.PostView;
 import com.interview.server.repository.CommentRepository;
 import com.interview.server.repository.PostRepository;
 import com.interview.server.repository.DiffRepository;
+import com.interview.server.service.AocService;
 import com.interview.server.service.AuditService;
 import com.interview.server.service.ViewTrackingService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,6 +44,9 @@ class ServerController {
 
     @Autowired
     private AuditService auditService;
+
+    @Autowired
+    private AocService aocService;
 
     @Autowired
     private ViewTrackingService viewTrackingService;
@@ -163,6 +168,24 @@ class ServerController {
     public ResponseEntity<Long> getViewCount(@PathVariable Long id) {
         return ResponseEntity.ok(viewTrackingService.getViewCount(id));
     }
+
+    @PostMapping("/aoc/solve")
+    public AocResult solveAoc(@RequestBody AocRequest request) {
+        return aocService.solve(
+            request.day(),
+            request.task(),
+            request.input(),
+            request.expectedOutput(),
+            request.test()
+        );
+    }
+
+    @GetMapping("/aoc/history")
+    public List<AocResult> aocHistory() {
+        return aocService.getHistory();
+    }
+
+    record AocRequest(int day, int task, String input, String expectedOutput, boolean test) {}
 
     @GetMapping("/post/{id}/views")
     public List<PostView> getViews(

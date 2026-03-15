@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Advent of Code · Blog</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    </svg>
+    Blog
+  </a>
+  <div class="nav-actions">
+    <a href="index.html" class="btn btn-ghost">← All Posts</a>
+    <a href="aoc.html" class="btn btn-primary">Advent of Code</a>
+  </div>
+</nav>
+
+<div class="page-wrapper" style="max-width:900px">
+  <div class="form-card">
+
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem">
+      <h1 class="form-card-title" style="margin-bottom:0">Advent of Code</h1>
+      <div class="form-group" style="margin-bottom:0">
+        <input type="number" id="aoc-day" class="form-input" min="1" max="25" placeholder="Day" style="width:100px" />
+      </div>
+      <div class="form-group" style="margin-bottom:0;display:flex;gap:0.25rem">
+        <button class="btn btn-primary btn-sm" id="aoc-task-1" style="min-width:70px">Task 1</button>
+        <button class="btn btn-outline btn-sm" id="aoc-task-2" style="min-width:70px">Task 2</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="aoc-input">Input</label>
+      <textarea id="aoc-input" class="form-textarea" rows="12" placeholder="Paste your puzzle input here…"></textarea>
+    </div>
+
+    <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
+      <div class="form-group" style="flex:1;min-width:200px">
+        <label class="form-label" for="aoc-expected">Expected Result (optional)</label>
+        <input type="text" id="aoc-expected" class="form-input" placeholder="Expected output…" />
+      </div>
+      <div class="form-group" style="flex:1;min-width:200px">
+        <label class="form-label">Output</label>
+        <div id="aoc-output" style="padding:0.625rem 0.875rem;border:1.5px solid var(--border);border-radius:8px;min-height:42px;background:var(--bg);font-size:0.9375rem;color:var(--text);word-break:break-all">&mdash;</div>
+      </div>
+    </div>
+
+    <div class="form-group" style="display:flex;align-items:center;gap:0.5rem">
+      <input type="checkbox" id="aoc-test" />
+      <label class="form-label" for="aoc-test" style="margin-bottom:0">Test</label>
+    </div>
+
+    <div id="aoc-alert" style="display:none"></div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" id="aoc-submit">
+        Solve
+      </button>
+    </div>
+
+  </div>
+
+  <div class="form-card" style="margin-top:1.5rem">
+    <h2 class="form-card-title">Run History</h2>
+    <div id="aoc-history-empty" class="empty-state" style="display:none">
+      <p>No runs yet.</p>
+    </div>
+    <table id="aoc-history-table" style="width:100%;border-collapse:collapse;font-size:0.875rem;display:none">
+      <thead>
+        <tr style="text-align:left;border-bottom:2px solid var(--border)">
+          <th style="padding:0.5rem 0.75rem">Day</th>
+          <th style="padding:0.5rem 0.75rem">Task</th>
+          <th style="padding:0.5rem 0.75rem">Output</th>
+          <th style="padding:0.5rem 0.75rem">Status</th>
+          <th style="padding:0.5rem 0.75rem">Test</th>
+          <th style="padding:0.5rem 0.75rem"></th>
+        </tr>
+      </thead>
+      <tbody id="aoc-history-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  let selectedTask = 1;
+  const task1Btn = document.getElementById('aoc-task-1');
+  const task2Btn = document.getElementById('aoc-task-2');
+
+  task1Btn.addEventListener('click', () => {
+    selectedTask = 1;
+    task1Btn.className = 'btn btn-primary btn-sm';
+    task2Btn.className = 'btn btn-outline btn-sm';
+  });
+  task2Btn.addEventListener('click', () => {
+    selectedTask = 2;
+    task2Btn.className = 'btn btn-primary btn-sm';
+    task1Btn.className = 'btn btn-outline btn-sm';
+  });
+
+  document.getElementById('aoc-submit').addEventListener('click', async () => {
+    const day = parseInt(document.getElementById('aoc-day').value, 10);
+    const task = selectedTask;
+    const input = document.getElementById('aoc-input').value;
+    const expectedOutput = document.getElementById('aoc-expected').value || null;
+    const test = document.getElementById('aoc-test').checked;
+    const alertEl = document.getElementById('aoc-alert');
+    const outputEl = document.getElementById('aoc-output');
+
+    if (!day || day < 1 || day > 25) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Please enter a day between 1 and 25.';
+      alertEl.style.display = '';
+      return;
+    }
+    if (!input.trim()) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Please provide puzzle input.';
+      alertEl.style.display = '';
+      return;
+    }
+
+    alertEl.style.display = 'none';
+    outputEl.textContent = 'Solving…';
+
+    try {
+      const res = await fetch('/api/aoc/solve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ day, task, input, expectedOutput, test })
+      });
+      if (!res.ok) throw new Error('Server error ' + res.status);
+      const data = await res.json();
+
+      outputEl.textContent = data.output;
+
+      if (data.result === 'SUCCESS') {
+        alertEl.className = 'alert alert-success';
+        alertEl.textContent = '✓ Output matches expected result!';
+        alertEl.style.display = '';
+      } else if (data.result === 'FAILURE') {
+        alertEl.className = 'alert alert-error';
+        alertEl.textContent = '✗ Output does not match expected result.';
+        alertEl.style.display = '';
+      }
+
+      loadHistory();
+    } catch (err) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = err.message;
+      alertEl.style.display = '';
+      outputEl.textContent = '—';
+    }
+  });
+
+  const statusBadge = (s) => {
+    if (s === 'SUCCESS') return '<span style="color:#15803d;font-weight:600">✓</span>';
+    if (s === 'FAILURE') return '<span style="color:#b91c1c;font-weight:600">✗</span>';
+    return '<span style="color:var(--text-muted)">—</span>';
+  };
+
+  async function loadHistory() {
+    try {
+      const res = await fetch('/api/aoc/history');
+      if (!res.ok) return;
+      const items = await res.json();
+      const table = document.getElementById('aoc-history-table');
+      const empty = document.getElementById('aoc-history-empty');
+      const body = document.getElementById('aoc-history-body');
+
+      if (!items.length) {
+        table.style.display = 'none';
+        empty.style.display = '';
+        return;
+      }
+
+      empty.style.display = 'none';
+      table.style.display = '';
+      body.innerHTML = items.map(r => `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:0.5rem 0.75rem">${r.day}</td>
+          <td style="padding:0.5rem 0.75rem">${r.task}</td>
+          <td style="padding:0.5rem 0.75rem;font-family:monospace">${r.output ?? '—'}</td>
+          <td style="padding:0.5rem 0.75rem">${statusBadge(r.result)}</td>
+          <td style="padding:0.5rem 0.75rem">${r.test ? 'Yes' : 'No'}</td>
+          <td style="padding:0.5rem 0.75rem">
+            <button class="btn btn-outline btn-sm" onclick='rerun(${JSON.stringify(r)})'>Rerun</button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (_) {}
+  }
+
+  function rerun(r) {
+    document.getElementById('aoc-day').value = r.day;
+    selectedTask = r.task;
+    if (r.task === 1) {
+      task1Btn.className = 'btn btn-primary btn-sm';
+      task2Btn.className = 'btn btn-outline btn-sm';
+    } else {
+      task2Btn.className = 'btn btn-primary btn-sm';
+      task1Btn.className = 'btn btn-outline btn-sm';
+    }
+    document.getElementById('aoc-input').value = r.input ?? '';
+    document.getElementById('aoc-expected').value = r.expectedOutput ?? '';
+    document.getElementById('aoc-test').checked = r.test;
+    document.getElementById('aoc-submit').click();
+  }
+
+  loadHistory();
+</script>
+</body>
+</html>
